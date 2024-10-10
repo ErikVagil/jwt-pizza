@@ -92,3 +92,69 @@ test('purchase with login', async ({ page }) => {
   // Check balance
   await expect(page.getByText('0.008')).toBeVisible();
 });
+
+test('static pages', async ({ page }) => {
+  // Home page
+  await page.goto('/');
+
+  // Franchise page
+  await page.getByLabel('Global').getByRole('link', { name: 'Franchise' }).click();
+  await expect(page.getByText('So you want a piece of the')).toBeVisible();
+
+  // Register page
+  await page.getByRole('link', { name: 'Register' }).click();
+  await expect(page.getByPlaceholder('Full name')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Register' })).toBeVisible();
+
+  // About page
+  await page.goto('/');
+  await page.getByRole('link', { name: 'About' }).click();
+  await expect(page.getByText('The secret sauce')).toBeVisible();
+
+  // History page
+  await page.getByRole('link', { name: 'History' }).click();
+  await expect(page.getByText('Mama Rucci, my my')).toBeVisible();
+
+  // Page not found
+  await page.goto('/404');
+  await expect(page.getByText('Oops')).toBeVisible();
+});
+
+test('register and logout', async ({ page }) => {
+  await page.route('*/**/api/auth', async (route) => {
+    if (route.request().method() === 'POST') {
+      const registerReq = { name: 'a', email: 'd@jwt.com', password: 'a' };
+      const registerRes = { user: { id: 3, name: 'Kai Chen', email: 'd@jwt.com', roles: [{ role: 'diner' }] }, token: 'abcdef' };
+      expect(route.request().method()).toBe('POST');
+      expect(route.request().postDataJSON()).toMatchObject(registerReq);
+      await route.fulfill({ json: registerRes });
+    } else if (route.request().method() === 'DELETE') {
+      expect(route.request().method()).toBe('DELETE');
+      expect(await route.request().headerValue('Authorization')).toMatch('Bearer abcdef');
+      await route.fulfill({ json: { message: 'logout successful' } });
+    }
+  });
+
+  // Home page
+  await page.goto('/');
+
+  // Test register
+  await page.getByRole('link', { name: 'Register' }).click();
+
+  await page.getByPlaceholder('Full name').click();
+  await page.getByPlaceholder('Full name').fill('a');
+  await page.getByPlaceholder('Full name').press('Tab');
+
+  await page.getByPlaceholder('Email address').fill('d@jwt.com');
+  await page.getByPlaceholder('Email address').press('Tab');
+
+  await page.getByPlaceholder('Password').fill('a');
+
+  await page.getByRole('button', { name: 'Register' }).click();
+  await expect(page.getByText('The web\'s best pizza', { exact: true })).toBeVisible();
+
+  // Test logout
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Logout' }).click();
+  await expect(page.getByRole('link', { name: 'Register' })).toBeVisible();
+});
