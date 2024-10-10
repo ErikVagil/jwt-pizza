@@ -114,6 +114,10 @@ test('static pages', async ({ page }) => {
   // History page
   await page.getByRole('link', { name: 'History' }).click();
   await expect(page.getByText('Mama Rucci, my my')).toBeVisible();
+  
+  // Docs page
+  await page.goto('/docs');
+  await expect(page.getByText('JWT Pizza API')).toBeVisible();
 
   // Page not found
   await page.goto('/404');
