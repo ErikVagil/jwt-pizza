@@ -162,3 +162,55 @@ test('register and logout', async ({ page }) => {
   await page.getByRole('link', { name: 'Logout' }).click();
   await expect(page.getByRole('link', { name: 'Register' })).toBeVisible();
 });
+
+test('admin', async ({ page }) => {
+  let isFirstGetCall = true;
+  await page.route('*/**/api/auth', async (route) => {
+    const loginReq = { email: 'a@jwt.com', password: 'a' };
+    const loginRes = { user: { id: 3, name: 'a', email: 'a@jwt.com', roles: [{ role: 'admin' }] }, token: 'abcdef' };
+    expect(route.request().method()).toBe('PUT');
+    expect(route.request().postDataJSON()).toMatchObject(loginReq);
+    await route.fulfill({ json: loginRes });
+  });
+
+  await page.route('*/**/api/franchise', async (route) => {
+    if (route.request().method() === 'GET') {
+      if (isFirstGetCall) {
+        await route.fulfill({ json: [{ name: 'base', admins: [{ email: 'b@jwt.com', id: 15, name: 'b'}], id: 1 , stores: [] }] })
+      } else {
+        await route.fulfill({ json: [{ name: 'test', admins: [{ email: 'a@jwt.com', id: 3, name: 'a'}], id: 2 , stores: [] }]})
+      }
+    } else if (route.request().method() === 'POST') {
+      const createReq = { name: 'test', admins: [{ email: 'a@jwt.com' }]};
+      const createRes = { name: 'test', admins: [{ email: 'a@jwt.com', id: 3, name: 'a'}], id: 2 };
+      expect(route.request().method()).toBe('POST');
+      expect(route.request().postDataJSON()).toMatchObject(createReq);
+      await route.fulfill({ json: createRes });
+    }
+  });
+
+  // Home page
+  await page.goto('/');
+
+  // Login as admin
+  await page.getByRole('link', { name: 'Login' }).click();
+  await page.getByPlaceholder('Email address').fill('a@jwt.com');
+  await page.getByPlaceholder('Password').click();
+  await page.getByPlaceholder('Password').fill('a');
+  await page.getByRole('button', { name: 'Login' }).click();
+
+  // Go to dashboard and create/delete franchise
+  await page.getByRole('link', { name: 'Admin' }).click();
+  isFirstGetCall = false;
+  await expect(page.getByRole('button', { name: 'Add Franchise' })).toBeVisible();
+  await page.getByRole('button', { name: 'Add Franchise' }).click();
+  await expect(page.getByText('Create franchise', { exact: true })).toBeVisible();
+  await page.getByPlaceholder('franchise name').click();
+  await page.getByPlaceholder('franchise name').fill('test');
+  await page.getByPlaceholder('franchisee admin email').click();
+  await page.getByPlaceholder('franchisee admin email').fill('a@jwt.com');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByRole('cell', { name: 'a' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('button', { name: 'Close' }).click();
+});
