@@ -594,3 +594,18 @@ test('diner dashboard', async ({ page }) => {
   await page.getByRole('link', { name: 'KC', exact: true }).click();
   await expect(page.getByText('Your pizza kitchen')).toBeVisible();
 });
+
+test('docs', async ({ page }) => {
+  await page.route('*/**/api/docs', async (route) => {
+    await route.fulfill({ json: {
+      requiresAuth: false,
+      method: 'GET',
+      path: '/test',
+      description: 'Does nothing',
+      example: 'No example',
+      response: 'No response',
+    } });
+  });
+
+  await page.goto('/docs');
+});
