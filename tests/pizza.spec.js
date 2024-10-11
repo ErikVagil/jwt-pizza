@@ -597,14 +597,14 @@ test('diner dashboard', async ({ page }) => {
 
 test('docs', async ({ page }) => {
   await page.route('*/**/api/docs', async (route) => {
-    await route.fulfill({ json: {
+    await route.fulfill({ json: { endpoints: [{
       requiresAuth: false,
       method: 'GET',
       path: '/test',
       description: 'Does nothing',
       example: 'No example',
       response: 'No response',
-    } });
+    }]} });
   });
 
   await page.goto('/docs');
