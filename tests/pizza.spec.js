@@ -214,3 +214,73 @@ test('admin', async ({ page }) => {
   await page.getByRole('button', { name: 'Close' }).click();
   await page.getByRole('button', { name: 'Close' }).click();
 });
+
+test('create store', async ({ page }) => {
+  let isFirstGetCall = true;
+  await page.route('*/**/api/auth', async (route) => {
+    const loginReq = { email: 'a@jwt.com', password: 'a' };
+    const loginRes = { user: { id: 3, name: 'a', email: 'a@jwt.com', roles: [{ role: 'admin' }] }, token: 'abcdef' };
+    expect(route.request().method()).toBe('PUT');
+    expect(route.request().postDataJSON()).toMatchObject(loginReq);
+    await route.fulfill({ json: loginRes });
+  });
+
+  await page.route('*/**/api/franchise/*', async (route) => {
+    if (route.request().method() === 'GET') {
+      if (isFirstGetCall) {
+        route.fulfill({ json: [{ name: 'test', admins: [{ email: 'a@jwt.com', id: 3, name: 'a'}], id: 2, stores: [] }] });
+      } else {
+        route.fulfill({ json: [
+          { 
+            name: 'test', 
+            admins: [
+              { email: 'a@jwt.com', id: 3, name: 'a'}
+            ], 
+            id: 2, 
+            stores: [
+              { id: 1, totalRevenue: 0, name: 'north' }
+            ]
+          }
+        ] });
+      }
+    } else {
+      route.fallback();
+    }
+  });
+  
+  await page.route('*/**/api/franchise/*/store', async (route) => {
+    if (route.request().method() === 'POST') {
+      route.fulfill({ json: { id: 1, franchiseId: 2, name: 'north' } });
+    } else {
+      route.fallback();
+    }
+  });
+  
+  await page.route('*/**/api/franchise/*/store/*', async (route) => {
+    if (route.request().method() === 'DELETE') {
+      route.fulfill({ json: { id: 1, franchiseId: 2, name: 'north' } });
+    } else {
+      route.fallback();
+    }
+  });
+
+  await page.goto('/');
+
+  await page.getByLabel('Global').getByRole('link', { name: 'Franchise' }).click();
+  await page.getByRole('link', { name: 'login', exact: true }).click();
+
+  await page.getByPlaceholder('Email address').fill('a@jwt.com');
+  await page.getByPlaceholder('Password').click();
+  await page.getByPlaceholder('Password').fill('a');
+  await page.getByRole('button', { name: 'Login' }).click();
+
+  await expect(page.getByText('test')).toBeVisible();
+  isFirstGetCall = false;
+  await page.getByRole('button', { name: 'Create store' }).click();
+  await page.getByPlaceholder('store name').click();
+  await page.getByPlaceholder('store name').fill('north');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByRole('cell', { name: 'north' })).toBeVisible();
+  await page.getByRole('row', { name: 'north 0 ₿ Close' }).getByRole('button').click();
+  await page.getByRole('button', { name: 'Close' }).click();
+});
