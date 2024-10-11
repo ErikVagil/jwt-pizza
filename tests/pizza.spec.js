@@ -597,15 +597,30 @@ test('diner dashboard', async ({ page }) => {
 
 test('docs', async ({ page }) => {
   await page.route('*/**/api/docs', async (route) => {
-    await route.fulfill({ json: { endpoints: [{
-      requiresAuth: false,
-      method: 'GET',
-      path: '/test',
-      description: 'Does nothing',
-      example: 'No example',
-      response: 'No response',
-    }]} });
+    await route.fulfill({ json: {
+      version: "20240518.154317",
+      endpoints: [
+        {
+          "method": "POST",
+          "path": "/api/auth",
+          "description": "Register a new user",
+          "example": "test",
+          "response": {
+            "user": {
+              "id": 2,
+              "name": "pizza diner",
+              "email": "d@jwt.com",
+              "roles": [
+                {
+                  "role": "diner"
+                }
+              ]
+            },
+            "token": "tttttt"
+          }
+        }]} });
   });
 
   await page.goto('/docs');
+  await expect(page.getByText('JWT Pizza API')).toBeVisible();
 });
